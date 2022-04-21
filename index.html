@@ -1,0 +1,197 @@
+<html>
+<head>
+    
+    
+    <!-- https://cdnjs.com/libraries/tensorflow/ -->
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tensorflow/1.7.4/tf.js"></script>
+    
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css">
+
+    <script>
+        
+        async function train(){
+            
+            
+            
+            const trainingUrl = 'PCDB-TRAIN.csv';
+            
+            
+            const trainingData = tf.data.csv(trainingUrl, {
+                
+                
+                columnConfigs: {
+                    diagnosis: {
+                        isLabel: true
+                    }
+                }
+                
+            });
+            
+            
+            const convertedTrainingData = trainingData.map(({xs, ys}) => {
+                      
+                      return{ xs: Object.values(xs), ys: Object.values(ys)};
+            }).batch(10);
+                  
+            const testingUrl = 'PCDB-TEST.csv';
+            
+            
+            const testingData = tf.data.csv(testingUrl, {
+                
+               
+                columnConfigs: {
+                    diagnosis: {
+                        isLabel: true
+                    }
+                }
+                
+            });
+            
+            
+            const convertedTestingData = testingData.map(({xs, ys}) => {
+                      
+                      return{ xs: Object.values(xs), ys: Object.values(ys)};
+            }).batch(10);
+                  
+
+            
+            const numOfFeatures = (await trainingData.columnNames()).length - 1;
+            
+                
+            
+            const model = tf.sequential();
+            
+            
+            model.add(tf.layers.dense({inputShape: [numOfFeatures], activation: "relu", units: 32}))
+            model.add(tf.layers.dense({activation: "sigmoid", units: 1}));
+            
+            
+             
+            model.compile({loss: "binaryCrossentropy", optimizer: "rmsprop", metrics: ['accuracy']});
+            
+            
+            await model.fitDataset(convertedTrainingData, 
+                             {epochs:20,
+                              validationData: convertedTestingData,
+                              callbacks:{
+                                  onEpochEnd: async(epoch, logs) =>{
+                                      console.log("Epoch: " + epoch + " Loss: " + logs.loss + " Accuracy: " + logs.acc);
+                                  }
+                              }});
+            await model.save('localstorage://my-model');
+            
+            $('#training').hide();
+            $('#prediction').show();
+            
+        }
+        train();
+        
+        async function predict(radius, texture, perimeter, area, smoothness, compactness, symmetry, fractal_dimension){
+            
+            const model = await tf.loadLayersModel('localstorage://my-model');
+            
+            
+            const testVal = tf.tensor2d([parseFloat(radius), parseFloat(texture), parseFloat(perimeter), parseFloat(area), parseFloat(smoothness), parseFloat(compactness), parseFloat(symmetry), parseFloat(fractal_dimension)], [1, 8]);
+            
+            
+            
+            const prediction = model.predict(testVal);
+
+            
+            prediction.print();
+
+            const value = prediction.dataSync();
+
+            $('#result').show();
+            
+            if(value[0]>0.5){
+                $('#result').append('<span id="finalresult" class="text-danger">cancer</span>');
+            } else {
+                $('#result').append('<span id="finalresult" class="text-success">not cancer</span>');
+            }
+        }
+        
+        $(document).ready(function(){
+            
+            $('#prediction').hide();
+            $('#result').hide();
+            
+            $('#prediction').click(function(){
+                
+                $('#result #finalresult').remove();
+                
+                var radius = $("#radius").val();
+                var texture = $("#texture").val();
+                var perimeter = $("#perimeter").val();
+                var area = $("#area").val();
+                var smoothness = $("#smoothness").val();
+                var compactness = $("#compactness").val();
+                var symmetry = $("#symmetry").val();
+                var fractal_dimension = $("#fractal_dimension").val();
+                
+                predict(radius, texture, perimeter, area, smoothness, compactness, symmetry, fractal_dimension);
+                
+            });
+        });
+        
+        
+        
+    </script>
+    
+</head>
+    
+    
+<body>
+    
+    <div class="row">
+        <div class="col-2">
+            <label>Raio</label>
+            <input id="radius" type="number" value="21">
+        </div>
+        <div class="col-2">
+            <label>Textura</label>
+            <input id="texture" type="number" value="18">
+        </div>
+        <div class="col-2">
+            <label>Perímetro</label>
+            <input id="perimeter" type="number" value="104">
+        </div>
+        <div class="col-2">
+            <label>Área</label>
+            <input id="area" type="number" value="818">
+        </div>
+        <div class="col-2">
+            <label>definição dos contornos</label>
+            <input id="smoothness" type="number" value="92">
+        </div>
+        <div class="col-2">
+            <label>Compactação</label>
+            <input id="compactness" type="number" value="84">
+        </div>
+    </div>
+    
+    
+    
+    <div class="row">
+        <div class="col-2">
+            <label>Simetria</label>
+            <input id="symmetry" type="number" value="0.18">
+        </div>
+        <div class="col-2">
+            <label>Dimensão fractal</label>
+            <input id="fractal_dimension" type="number" value="54">
+        </div>
+        
+    <br>
+    <button id="prediction" class="btn btn-primary col-md-2 offset-md-5">Fazer a predição</button>
+    <p id="training">Calibrando dados ... Aguarde</p>
+    <br><br>
+    <p id="result" class="col-md-2 offset-md-5">Resultado: </p>
+    <br><br>
+    <p>Este é um software experimental com fins de pesquisa.</p>
+    
+</body>
+</html>
