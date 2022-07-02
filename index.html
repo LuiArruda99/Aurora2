@@ -16,7 +16,7 @@
             
             
             
-            const trainingUrl = 'PCDB-TRAIN.csv';
+            const trainingUrl = 'Prostate_Cancer_train.csv';
             
             
             const trainingData = tf.data.csv(trainingUrl, {
@@ -36,7 +36,7 @@
                       return{ xs: Object.values(xs), ys: Object.values(ys)};
             }).batch(10);
                   
-            const testingUrl = 'PCDB-TEST.csv';
+            const testingUrl = 'Prostate_cancer_test.csv';
             
             
             const testingData = tf.data.csv(testingUrl, {
